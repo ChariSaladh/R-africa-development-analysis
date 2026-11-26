@@ -1,0 +1,98 @@
+---
+title: "Life Expectancy and Income in Africa, 1952-2007"
+author: "Chari Saladh"
+date: "`r format(Sys.Date(), '%d %B %Y')`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    theme: flatly
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, fig.crop = FALSE)
+library(tidyverse)
+
+africa <- read_csv("data/africa_gapminder.csv")
+gains <- read_csv("output/life_expectancy_gains.csv")
+setbacks <- read_csv("output/setbacks_1987_1997.csv")
+top10 <- read_csv("output/top10_life_expectancy.csv")
+bottom10 <- read_csv("output/bottom10_life_expectancy.csv")
+
+kenya <- gains |> filter(country == "Kenya")
+```
+
+## Overview
+
+This report uses the Gapminder dataset to look at **`r n_distinct(africa$country)` African countries** from 1952 to 2007. Across the continent, life expectancy rose from **`r round(mean(africa$lifeExp[africa$year == 1952]), 1)`** to **`r round(mean(africa$lifeExp[africa$year == 2007]), 1)`** years on average. Kenya gained **`r kenya$gain`** years, from `r round(kenya$y1952, 1)` to `r round(kenya$y2007, 1)`.
+
+## Where life expectancy is highest and lowest (2007)
+
+```{r}
+top10 |> select(country, lifeExp, gdpPercap, pop) |> knitr::kable(digits = 1, caption = "Top 10")
+bottom10 |> select(country, lifeExp, gdpPercap, pop) |> knitr::kable(digits = 1, caption = "Bottom 10")
+```
+
+## Kenya and its neighbours
+
+```{r}
+africa |>
+  filter(country %in% c("Kenya", "Uganda", "Tanzania", "Rwanda", "Ethiopia")) |>
+  ggplot(aes(x = year, y = lifeExp, colour = country)) +
+  geom_line(linewidth = 1) +
+  labs(x = NULL, y = "Life expectancy (years)", colour = "Country") +
+  theme_minimal()
+```
+
+## Income and life expectancy
+
+```{r}
+africa |>
+  filter(year == 2007) |>
+  ggplot(aes(x = gdpPercap, y = lifeExp, size = pop)) +
+  geom_point(alpha = 0.6, colour = "darkgreen") +
+  scale_x_log10(labels = scales::dollar) +
+  labs(x = "GDP per person (log scale)", y = "Life expectancy (years)", size = "Population") +
+  theme_minimal()
+```
+
+## Biggest gains, 1952-2007
+
+```{r}
+gains |>
+  slice_head(n = 10) |>
+  ggplot(aes(x = reorder(country, gain), y = gain)) +
+  geom_col(fill = "steelblue") +
+  coord_flip() +
+  labs(x = NULL, y = "Years gained") +
+  theme_minimal()
+```
+
+## Setbacks, 1987-1997
+
+Between 1987 and 1997, life expectancy **fell in `r nrow(setbacks)` countries**.
+
+```{r}
+setbacks |> knitr::kable(digits = 1)
+```
+
+## Kenya against the African average
+
+```{r}
+avg_africa <- africa |>
+  group_by(year) |>
+  summarise(lifeExp = mean(lifeExp)) |>
+  mutate(country = "Africa average")
+
+africa |>
+  filter(country == "Kenya") |>
+  select(year, lifeExp, country) |>
+  bind_rows(avg_africa) |>
+  ggplot(aes(x = year, y = lifeExp, colour = country)) +
+  geom_line(linewidth = 1.2) +
+  geom_point() +
+  labs(x = NULL, y = "Life expectancy (years)", colour = NULL) +
+  theme_minimal()
+```
+
+*Data: Gapminder, via the `gapminder` R package.*
